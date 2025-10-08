@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POS - Tiendita</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#151924; --muted:#8b93a7; --text:#e8ecf1;
+      --primary:#7dd3fc; --accent:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#fb7185;
+      --btn:#1f2433; --btn-hover:#2a3145; --border:#2b3247;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px;position:relative}
+    .brand{display:flex;gap:10px;align-items:center}
+    .brand h1{font-size:1.1rem;margin:0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input, select, button{background:var(--btn);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+    input:focus,select:focus,button:focus{outline:none;border-color:var(--primary)}
+    button{cursor:pointer}
+    button:hover{background:var(--btn-hover)}
+    .products{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+    .card{background:#111522;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+    .card h4{margin:0;font-size:.95rem}
+    .tag{font-size:.8rem;color:var(--muted)}
+    .price{font-weight:700}
+    .qty{display:flex;gap:6px;align-items:center}
+    .qty button{padding:6px 10px}
+    .cart{display:flex;flex-direction:column;gap:10px}
+    .cart-list{max-height:360px;overflow:auto;border:1px dashed var(--border);border-radius:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid var(--border);font-size:.95rem}
+    th{text-align:left;color:var(--muted);position:sticky;top:0;background:var(--panel)}
+    .totals{display:grid;gap:6px;margin-top:8px}
+    .totals .row{justify-content:space-between}
+    .pay{display:grid;gap:10px}
+    .pay .pmethods{display:flex;gap:10px;flex-wrap:wrap}
+    .btn-primary{background:linear-gradient(180deg,var(--primary),#60a5fa);border:none;color:#07121c;font-weight:700}
+    .btn-ok{background:var(--ok);border:none;color:#062012;font-weight:700}
+    .btn-danger{background:var(--danger);border:none;color:#25060f;font-weight:700}
+    .footer{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+    .small{font-size:.86rem}
+    .pill{padding:4px 8px;border-radius:999px;background:#0e1421;border:1px solid var(--border)}
+    .hidden{display:none}
+    .clickable{cursor:pointer}
+
+    /* Mini menú de cajeros */
+    .menu{position:absolute;top:52px;left:0;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:6px;z-index:10;min-width:220px;display:none}
+    .menu .menu-title{font-size:.85rem;color:var(--muted);padding:6px 8px}
+    .menu .menu-row{display:flex;gap:8px;padding:6px 8px}
+    .menu button{flex:1}
+    .menu hr{border:0;border-top:1px solid var(--border);margin:6px 0}
+
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    /* Recibo imprimible */
+    #ticket{display:none}
+    #ticket .t{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,"Liberation Mono","Courier New", monospace}
+    #ticket .center{text-align:center}
+    @media print{
+      body *{visibility:hidden}
+      #ticket, #ticket *{visibility:visible}
+      #ticket{position:absolute;left:0;top:0;right:0;margin:20px}
+    }
+
+    /* ===== MODO LITE (Fire 7) ===== */
+    body.lite * { text-shadow:none !important; box-shadow:none !important; }
+    body.lite .panel, body.lite .card, body.lite .pill, body.lite input, body.lite button {
+      border-radius:8px !important; border:1px solid #222 !important; background:#121418 !important;
+    }
+    body.lite .btn-primary { background:#2a3145 !important; }
+    body.lite .btn-ok { background:#1f7a53 !important; }
+    body.lite .btn-danger { background:#7a2c3a !important; }
+    body.lite .grid { gap:10px !important; }
+    body.lite .products { grid-template-columns:repeat(auto-fill,minmax(128px,1fr)) !important; gap:8px !important; }
+    body.lite th { position:static !important; }
+    body.lite .wrap { padding:12px !important; }
+    body.lite .card h4 { font-size:.9rem !important; }
+  </style>
+
+<script>
+  // Registro del Service Worker (requerido para instalar como app)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        await navigator.serviceWorker.register("./service-worker.js", { scope: "./" });
+        // console.log("SW ok");
+      } catch (e) {
+        console.warn("SW fail", e);
+      }
+    });
+  }
+
+  // (Opcional) Botoncito para instalar desde la propia app
+  let deferredPrompt;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Si quieres, muestra un botón “Instalar”
+    document.getElementById("btnInstall").classList.remove("hidden");
+  });
+  async function instalarApp() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    // document.getElementById("btnInstall").classList.add("hidden");
+  }
+</script>
+
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7h18l-2 10a4 4 0 0 1-4 3H9a4 4 0 0 1-4-3L3 7Z" stroke="#7dd3fc" stroke-width="1.5"/>
+          <path d="M8 7V6a4 4 0 1 1 8 0v1" stroke="#a78bfa" stroke-width="1.5"/>
+        </svg>
+        <h1 id="storeName">POS - Tiendita</h1>
+        <button id="operatorBtn" class="pill small clickable" title="Cambiar cajero">Cajero: <strong id="operatorName">Axel</strong> ⬇️</button>
+      </div>
+      <div class="row">
+        <input id="search" placeholder="Buscar producto o código (Enter)…" />
+        <button id="btnSettings" title="Ajustes">⚙️ Ajustes</button>
+      </div>
+
+      <!-- Menú de cajeros -->
+      <div id="operatorMenu" class="menu">
+        <div class="menu-title">Cambiar cajero</div>
+        <div class="menu-row">
+          <button data-op="Axel">Axel</button>
+          <button data-op="Madeline">Madeline</button>
+          <button data-op="Minelys">Minelys</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Catálogo (venta táctil en tarjeta) -->
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <div class="small muted">Toca una tarjeta para añadir al carrito. Usa ± para ajustar cantidad.</div>
+        </div>
+        <div class="products" id="productGrid"></div>
+      </div>
+
+      <!-- Carrito -->
+      <div class="panel cart">
+        <div class="cart-list">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Cant</th>
+                <th>Precio</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cartBody"></tbody>
+          </table>
+        </div>
+
+        <div class="totals">
+          <div class="row"><span>Subtotal</span><strong id="subTxt">$0.00</strong></div>
+          <div class="row"><span>IVU (<span id="taxRateTxt">11.5</span>%)</span><strong id="taxTxt">$0.00</strong></div>
+          <div class="row"><span>Descuento</span><strong id="discTxt">$0.00</strong></div>
+          <div class="row" style="font-size:1.2rem"><span>Total</span><strong id="totalTxt">$0.00</strong></div>
+        </div>
+
+        <div class="pay">
+          <div class="pmethods">
+            <label><input type="radio" name="pm" value="cash" checked> Efectivo</label>
+            <label><input type="radio" name="pm" value="ath"> ATH Móvil</label>
+            <label><input type="radio" name="pm" value="paypal"> PayPal</label>
+          </div>
+
+          <div class="row" id="cashRow">
+            <input id="cashIn" type="number" inputmode="decimal" step="0.01" placeholder="Efectivo recibido"/>
+            <div class="pill">Cambio: <strong id="changeTxt">$0.00</strong></div>
+          </div>
+
+          <div id="athRow" class="hidden small">
+            <div class="muted">Pago por ATH Móvil:</div>
+            <div class="row">
+              <a id="athLink" class="pill" href="#" target="_blank">Abrir enlace ATH</a>
+              <span class="pill">Handle: <strong id="athHandleTxt">@TuComercio</strong></span>
+            </div>
+          </div>
+
+          <div id="ppRow" class="hidden small">
+            <div class="muted">Pago con PayPal:</div>
+            <a id="ppLink" class="pill" href="#" target="_blank">Abrir enlace PayPal</a>
+          </div>
+
+          <div class="row" style="justify-content:space-between">
+            <div class="row">
+              <label class="small"><input type="checkbox" id="sendToSheets"> Enviar venta a Google Sheets</label>
+            </div>
+            <div class="row">
+              <button id="btnClear" class="btn-danger">🗑️ Vaciar</button>
+              <button id="btnSale" class="btn-ok">✅ Finalizar venta</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <span class="small muted">Ventas del día: <span id="salesCount">0</span></span>
+          <div class="row">
+            <button id="btnResetDay" class="pill small">🔄 Reiniciar ventas del día</button>
+            <span class="small pill">Imprimir recibo tras venta <input type="checkbox" id="autoPrint" checked></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ajustes + Gestor de Catálogo -->
+    <div id="settingsPanel" class="panel" style="margin-top:14px;display:none">
+      <h3 style="margin:0 0 8px 0">Ajustes</h3>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="panel" style="padding:10px">
+          <h4 style="margin-top:0">Negocio</h4>
+          <div class="row"><input id="inpStoreName" placeholder="Nombre del negocio"></div>
+          <div class="row"><input id="inpOperator" placeholder="Nombre del cajero"></div>
+          <div class="row"><input id="inpTax" type="number" step="0.01" placeholder="IVU % (ej. 11.5)"></div>
+          <div class="row"><input id="inpDiscount" type="number" step="0.01" placeholder="Descuento fijo $ (opcional)"></div>
+          <div class="row"><label><input id="inpLite" type="checkbox"> Modo Lite (rendimiento)</label></div>
+        </div>
+        <div class="panel" style="padding:10px">
+          <h4 style="margin-top:0">Pagos</h4>
+          <div class="row"><input id="inpATHHandle" placeholder="ATH Móvil handle (ej. @TuComercio)"></div>
+          <div class="row"><input id="inpATHUrl" placeholder="URL de pago ATH (opcional)"></div>
+          <div class="row"><input id="inpPPUrl" placeholder="URL de pago PayPal (opcional)"></div>
+          <div class="row"><input id="inpSheetsUrl" placeholder="URL Web App (Apps Script) para Google Sheets"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:10px;padding:10px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Gestor de Catálogo</h4>
+          <div class="row">
+            <button id="btnAddRow">➕ Añadir producto</button>
+            <button id="btnExport" title="Exportar JSON">⬇️ Exportar</button>
+            <button id="btnImport" title="Importar JSON">⬆️ Importar</button>
+          </div>
+        </div>
+        <div class="cart-list" style="margin-top:8px;max-height:320px">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th><th>Precio</th><th>Código</th><th>Etiqueta</th><th>Stock</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="mgrBody"></tbody>
+          </table>
+        </div>
+        <div class="small muted" style="margin-top:6px">Tip: usa +1 / +5 / +10 para reabastecer rápido.</div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end;margin-top:6px">
+        <button id="btnSaveSettings" class="btn-primary">💾 Guardar ajustes</button>
+      </div>
+    </div>
+
+    <!-- Recibo para imprimir -->
+    <div id="ticket">
+      <div class="t">
+        <div class="center">
+          <h2 id="tStore"></h2>
+          <div id="tAddr" class="muted"></div>
+          <div id="tDate" class="muted"></div>
+        </div>
+        <hr>
+        <table style="width:100%">
+          <thead>
+            <tr><th>Item</th><th>Cant</th><th>Precio</th><th>Total</th></tr>
+          </thead>
+          <tbody id="tBody"></tbody>
+        </table>
+        <hr>
+        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span id="tSub"></span></div>
+        <div style="display:flex;justify-content:space-between"><span>IVU</span><span id="tTax"></span></div>
+        <div style="display:flex;justify-content:space-between"><span>Desc.</span><span id="tDisc"></span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700"><span>Total</span><span id="tTotal"></span></div>
+        <div style="display:flex;justify-content:space-between"><span>Pago</span><span id="tPM"></span></div>
+        <div style="display:flex;justify-content:space-between"><span>Efectivo</span><span id="tCash"></span></div>
+        <div style="display:flex;justify-content:space-between"><span>Cambio</span><span id="tChange"></span></div>
+        <hr>
+        <div class="center muted">¡Gracias por su compra! 📦🧾</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utilidades ----------
+    const $ = (q) => document.querySelector(q);
+    const $$ = (q) => [...document.querySelectorAll(q)];
+    const fmt = (n) => `$${Number(n).toFixed(2)}`;
+    const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    // ---------- Datos iniciales ----------
+    const DEFAULT_STOCK = 20;
+
+    const DEFAULT_PRODUCTS = [
+      {id:'choc', name:'Chocolate', price:1.50, code:'1001', tag:'Dulces', stock:DEFAULT_STOCK},
+      {id:'papitas', name:'Papitas', price:1.25, code:'1002', tag:'Snacks', stock:DEFAULT_STOCK},
+      {id:'agua', name:'Agua', price:1.00, code:'1003', tag:'Bebida', stock:DEFAULT_STOCK},
+      {id:'jugoN', name:'Jugo Naranja', price:1.75, code:'1004', tag:'Bebida', stock:DEFAULT_STOCK},
+      {id:'jugoM', name:'Jugo Manzana', price:1.75, code:'1005', tag:'Bebida', stock:DEFAULT_STOCK}
+    ];
+
+    const DEFAULT_SETTINGS = {
+      storeName: 'POS - Tiendita',
+      operator: 'Axel', // valor inicial de los 3 disponibles
+      taxRate: 11.5,
+      discount: 0,
+      athHandle: '@TuComercio',
+      athUrl: '',
+      ppUrl: '',
+      sheetsUrl: '',
+      autoPrint: true,
+      lite: true
+    };
+
+    let products = JSON.parse(localStorage.getItem('pos:products')||'null') || DEFAULT_PRODUCTS;
+    products = products.map(p => ({...p, stock: typeof p.stock==='number' ? p.stock : DEFAULT_STOCK}));
+
+    let settings = JSON.parse(localStorage.getItem('pos:settings')||'null') || DEFAULT_SETTINGS;
+    let cart = [];
+    let salesCount = Number(localStorage.getItem('pos:salesCount')||0);
+
+    // ---------- Render catálogo (venta táctil en tarjeta) ----------
+    function renderProducts(){
+      const grid = $('#productGrid');
+      grid.innerHTML = '';
+      products.forEach(p=>{
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.dataset.id = p.id; // para toque en tarjeta completa
+        el.innerHTML = `
+          <h4>${p.name}</h4>
+          <div class="tag">${p.tag||''}</div>
+          <div class="price">${fmt(p.price)}</div>
+          <div class="small">Stock: <strong>${p.stock}</strong></div>
+          <div class="small muted">Código: ${p.code||'-'}</div>
+          <div class="qty">
+            <button type="button" data-id="${p.id}" data-delta="-1">−</button>
+            <button type="button" data-id="${p.id}" data-delta="1">Añadir</button>
+          </div>`;
+        if(p.stock <= 0){ el.querySelectorAll('button').forEach(b=> b.disabled = true); }
+        grid.appendChild(el);
+      });
+    }
+
+    // ---------- Carrito ----------
+    function addToCart(pid, delta=1){
+      const p = products.find(x=>x.id===pid);
+      if(!p) return;
+      const row = cart.find(x=>x.id===pid) || cart[cart.push({id:p.id,name:p.name,price:p.price,qty:0})-1];
+      row.qty = Math.min(Math.max(0, row.qty + delta), Math.max(0, p.stock));
+      if(row.qty===0){ cart = cart.filter(x=>x.id!==pid); }
+      renderCart();
+    }
+
+    function renderCart(){
+      const tb = $('#cartBody');
+      tb.innerHTML = '';
+      let sub = 0;
+      cart.forEach(item=>{
+        const line = item.price * item.qty;
+        sub += line;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>
+            <button data-id="${item.id}" data-delta="-1">−</button>
+            <span style="margin:0 6px">${item.qty}</span>
+            <button data-id="${item.id}" data-delta="1">+</button>
+          </td>
+          <td>${fmt(item.price)}</td>
+          <td>${fmt(line)}</td>
+          <td><button data-remove="${item.id}">✖</button></td>`;
+        tb.appendChild(tr);
+      });
+      const tax = sub * (Number(settings.taxRate||0)/100);
+      const disc = Number(settings.discount||0);
+      const total = Math.max(0, sub + tax - disc);
+      $('#subTxt').textContent = fmt(sub);
+      $('#taxRateTxt').textContent = Number(settings.taxRate||0).toFixed(2);
+      $('#taxTxt').textContent = fmt(tax);
+      $('#discTxt').textContent = fmt(disc);
+      $('#totalTxt').textContent = fmt(total);
+      if(getPM()==='cash') updateChange();
+    }
+
+    function getPM(){
+      const r = document.querySelector('input[name="pm"]:checked');
+      return r? r.value : 'cash';
+    }
+
+    function updateChange(){
+      const total = Number($('#totalTxt').textContent.replace(/[^0-9.]/g,''));
+      const cash = Number($('#cashIn').value||0);
+      const change = Math.max(0, cash - total);
+      $('#changeTxt').textContent = fmt(change);
+    }
+
+    // ---------- Búsqueda ----------
+    $('#search').addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){
+        const q = e.target.value.trim().toLowerCase();
+        if(!q) return;
+        const p = products.find(x=> x.code===q || x.name.toLowerCase().includes(q));
+        if(p){ addToCart(p.id, 1); e.target.value=''; }
+      }
+    });
+
+    // ---------- Finalizar venta ----------
+    async function finalizeSale(){
+      if(cart.length===0){ alert('El carrito está vacío.'); return; }
+      const pm = getPM();
+      const subtotal = Number($('#subTxt').textContent.replace(/[^0-9.]/g,''));
+      const tax = Number($('#taxTxt').textContent.replace(/[^0-9.]/g,''));
+      const discount = Number($('#discTxt').textContent.replace(/[^0-9.]/g,''));
+      const total = Number($('#totalTxt').textContent.replace(/[^0-9.]/g,''));
+      const cash = pm==='cash' ? Number($('#cashIn').value||0) : 0;
+      if(pm==='cash' && cash < total){
+        if(!confirm('El efectivo es menor que el total. ¿Continuar de todos modos?')) return;
+      }
+      const change = Math.max(0, cash-total);
+      const sale = {
+        id: uid(),
+        datetime: new Date().toISOString(),
+        store: settings.storeName,
+        operator: settings.operator,
+        items: cart.map(i=>({id:i.id,name:i.name,price:i.price,qty:i.qty,total: +(i.price*i.qty).toFixed(2)})),
+        subtotal:+subtotal.toFixed(2),
+        tax:+tax.toFixed(2),
+        discount:+discount.toFixed(2),
+        total:+total.toFixed(2),
+        payment_method: pm,
+        cash_received: +cash.toFixed(2),
+        change: +change.toFixed(2)
+      };
+
+      // Descontar inventario local por cada ítem vendido
+      cart.forEach(it=>{
+        const p = products.find(x=>x.id===it.id);
+        if(p){ p.stock = Math.max(0, Number(p.stock||0) - Number(it.qty||0)); }
+      });
+      localStorage.setItem('pos:products', JSON.stringify(products));
+
+      // (Opcional) Enviar a Sheets si se configuró URL
+      if($('#sendToSheets').checked && settings.sheetsUrl){
+        try{
+          await fetch(settings.sheetsUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body: JSON.stringify(sale) });
+        }catch(err){ console.error('Sheets error', err); }
+      }
+
+      // Imprimir recibo y limpiar
+      fillTicket(sale);
+      salesCount++; localStorage.setItem('pos:salesCount', salesCount);
+      $('#salesCount').textContent = salesCount;
+      cart = []; renderCart(); renderProducts();
+      $('#cashIn').value=''; $('#changeTxt').textContent=fmt(0);
+      if(settings.autoPrint && $('#autoPrint').checked){ window.print(); }
+      alert('Venta registrada ✅');
+    }
+
+    function fillTicket(s){
+      $('#tStore').textContent = s.store;
+      $('#tDate').textContent = new Date(s.datetime).toLocaleString();
+      const tb = $('#tBody'); tb.innerHTML='';
+      s.items.forEach(it=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.name}</td><td>${it.qty}</td><td>${fmt(it.price)}</td><td>${fmt(it.total)}</td>`;
+        tb.appendChild(tr);
+      });
+      $('#tSub').textContent = fmt(s.subtotal);
+      $('#tTax').textContent = fmt(s.tax);
+      $('#tDisc').textContent = fmt(s.discount);
+      $('#tTotal').textContent = fmt(s.total);
+      $('#tPM').textContent = s.payment_method.toUpperCase();
+      $('#tCash').textContent = fmt(s.cash_received);
+      $('#tChange').textContent = fmt(s.change);
+    }
+
+    // ---------- Ajustes ----------
+    function applySettings(){
+      $('#storeName').textContent = settings.storeName || 'POS - Tiendita';
+      $('#operatorName').textContent = settings.operator || 'Axel';
+      $('#athHandleTxt').textContent = settings.athHandle || '@TuComercio';
+      $('#athLink').href = settings.athUrl || '#';
+      $('#ppLink').href = settings.ppUrl || '#';
+      $('#sendToSheets').checked = !!settings.sheetsUrl;
+      $('#autoPrint').checked = !!settings.autoPrint;
+      document.body.classList.toggle('lite', !!settings.lite);
+      renderCart();
+    }
+
+    function openSettings(){
+      $('#settingsPanel').style.display = 'block';
+      $('#inpStoreName').value = settings.storeName;
+      $('#inpOperator').value = settings.operator;
+      $('#inpTax').value = settings.taxRate;
+      $('#inpDiscount').value = settings.discount;
+      $('#inpLite').checked = !!settings.lite;
+      $('#inpATHHandle').value = settings.athHandle;
+      $('#inpATHUrl').value = settings.athUrl;
+      $('#inpPPUrl').value = settings.ppUrl;
+      $('#inpSheetsUrl').value = settings.sheetsUrl;
+      renderManager();
+    }
+
+    function saveSettings(){
+      settings.storeName = $('#inpStoreName').value || settings.storeName;
+      settings.operator = $('#inpOperator').value || settings.operator;
+      settings.taxRate = Number($('#inpTax').value || settings.taxRate);
+      settings.discount = Number($('#inpDiscount').value || 0);
+      settings.lite = $('#inpLite').checked;
+      settings.athHandle = $('#inpATHHandle').value || settings.athHandle;
+      settings.athUrl = $('#inpATHUrl').value || '';
+      settings.ppUrl = $('#inpPPUrl').value || '';
+      settings.sheetsUrl = $('#inpSheetsUrl').value || '';
+      settings.autoPrint = $('#autoPrint').checked;
+      localStorage.setItem('pos:settings', JSON.stringify(settings));
+      applySettings();
+      alert('Ajustes guardados.');
+    }
+
+    // ---------- Gestor de catálogo ----------
+    function renderManager(){
+      const tb = $('#mgrBody'); if(!tb) return;
+      tb.innerHTML = '';
+      products.forEach(p=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input data-f="name" value="${p.name}"></td>
+          <td><input data-f="price" type="number" inputmode="decimal" step="0.01" value="${p.price}"></td>
+          <td><input data-f="code" value="${p.code||''}"></td>
+          <td><input data-f="tag" value="${p.tag||''}"></td>
+          <td>
+            <div class="row">
+              <input data-f="stock" type="number" step="1" value="${p.stock}">
+              <button class="pill small" data-act="restock" data-val="1" data-id="${p.id}">+1</button>
+              <button class="pill small" data-act="restock" data-val="5" data-id="${p.id}">+5</button>
+              <button class="pill small" data-act="restock" data-val="10" data-id="${p.id}">+10</button>
+            </div>
+          </td>
+          <td>
+            <button class="pill small" data-act="save" data-id="${p.id}">💾 Guardar</button>
+            <button class="pill small" data-act="del" data-id="${p.id}">🗑️ Borrar</button>
+          </td>`;
+        tr.dataset.id = p.id;
+        tb.appendChild(tr);
+      });
+    }
+
+    function saveRow(id){
+      const tr = [...$('#mgrBody').children].find(r=>r.dataset.id===id);
+      if(!tr) return;
+      const get = f => tr.querySelector(`[data-f="${f}"]`).value;
+      const target = products.find(x=>x.id===id);
+      if(!target) return;
+      Object.assign(target, {
+        name: get('name'),
+        price: Number(get('price')||0),
+        code: get('code')||'',
+        tag: get('tag')||'',
+        stock: Number(get('stock')||0)
+      });
+      localStorage.setItem('pos:products', JSON.stringify(products));
+      renderProducts();
+      alert('Producto guardado.');
+    }
+
+    function addRow(){
+      const id = 'p-' + Math.floor(Math.random()*1e6);
+      products.push({id, name:'Nuevo', price:0, code:'', tag:'', stock:DEFAULT_STOCK});
+      localStorage.setItem('pos:products', JSON.stringify(products));
+      renderManager();
+      renderProducts();
+    }
+
+    function deleteRow(id){
+      if(!confirm('¿Borrar este producto?')) return;
+      products = products.filter(x=>x.id!==id);
+      localStorage.setItem('pos:products', JSON.stringify(products));
+      renderManager();
+      renderProducts();
+    }
+
+    function restock(id, delta){
+      const p = products.find(x=>x.id===id); if(!p) return;
+      p.stock = Math.max(0, Number(p.stock||0) + Number(delta||0));
+      localStorage.setItem('pos:products', JSON.stringify(products));
+      renderManager(); renderProducts();
+    }
+
+    function exportProducts(){
+      const blob = new Blob([JSON.stringify(products,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'productos-pos.json';
+      a.click();
+    }
+
+    function importProducts(){
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'application/json';
+      inp.onchange = (e)=>{
+        const file = e.target.files[0]; if(!file) return;
+        const fr = new FileReader();
+        fr.onload = ()=>{
+          try{
+            let loaded = JSON.parse(fr.result);
+            loaded = loaded.map(p=>({...p, stock: typeof p.stock==='number' ? p.stock : DEFAULT_STOCK}));
+            products = loaded;
+            localStorage.setItem('pos:products', JSON.stringify(products));
+            renderManager(); renderProducts();
+          }catch(err){ alert('Archivo inválido'); }
+        };
+        fr.readAsText(file);
+      };
+      inp.click();
+    }
+
+    // ---------- Eventos UI ----------
+    $('#btnSale').addEventListener('click', finalizeSale);
+    $('#btnClear').addEventListener('click', ()=>{ if(confirm('Vaciar carrito?')){ cart=[]; renderCart(); }});
+    $('#btnResetDay').addEventListener('click', ()=>{
+      if(confirm('¿Reiniciar el conteo de ventas del día a 0?')){
+        salesCount = 0;
+        localStorage.setItem('pos:salesCount', salesCount);
+        $('#salesCount').textContent = salesCount;
+        alert('Ventas del día reiniciadas.');
+      }
+    });
+    $('#cashIn').addEventListener('input', updateChange);
+    $$('input[name="pm"]').forEach(r=>r.addEventListener('change', ()=>{
+      $('#cashRow').classList.toggle('hidden', getPM()!=='cash');
+      $('#athRow').classList.toggle('hidden', getPM()!=='ath');
+      $('#ppRow').classList.toggle('hidden', getPM()!=='paypal');
+      if(getPM()==='cash') updateChange();
+    }));
+
+    // Ajustes
+    $('#btnSettings').addEventListener('click', ()=>{
+      const p = $('#settingsPanel');
+      if(p.style.display==='none' || !p.style.display) openSettings(); else p.style.display='none';
+    });
+    $('#btnSaveSettings').addEventListener('click', saveSettings);
+
+    // Gestor
+    $('#btnAddRow').addEventListener('click', addRow);
+    $('#btnExport').addEventListener('click', exportProducts);
+    $('#btnImport').addEventListener('click', importProducts);
+    $('#mgrBody').addEventListener('click', (e)=>{
+      const b = e.target.closest('button'); if(!b) return;
+      const id = b.dataset.id;
+      const act = b.dataset.act;
+      if(act==='save') saveRow(id);
+      if(act==='del') deleteRow(id);
+      if(act==='restock') restock(id, Number(b.dataset.val||0));
+    });
+
+    // Delegación de eventos en el carrito
+    document.getElementById('cartBody').addEventListener('click',(e)=>{
+      const b = e.target.closest('button'); if(!b) return;
+      if(b.dataset.id){ addToCart(b.dataset.id, Number(b.dataset.delta||0)); }
+      if(b.dataset.remove){ cart = cart.filter(x=>x.id!==b.dataset.remove); renderCart(); }
+    });
+
+    // Delegación en catálogo:
+    // - si toca un botón ±, ajusta cantidad
+    // - si toca la tarjeta (fuera de los botones), añade +1
+    document.getElementById('productGrid').addEventListener('click',(e)=>{
+      const btn = e.target.closest('button[data-id]');
+      if(btn){ addToCart(btn.dataset.id, Number(btn.dataset.delta||1)); return; }
+      const card = e.target.closest('.card');
+      if(card && card.dataset.id){ addToCart(card.dataset.id, 1); }
+    });
+
+    // Menú de cajeros
+    const operatorBtn = $('#operatorBtn');
+    const operatorMenu = $('#operatorMenu');
+    operatorBtn.addEventListener('click', ()=>{
+      operatorMenu.style.display = (operatorMenu.style.display==='block') ? 'none' : 'block';
+    });
+    operatorMenu.addEventListener('click', (e)=>{
+      const b = e.target.closest('button[data-op]'); if(!b) return;
+      settings.operator = b.dataset.op;
+      localStorage.setItem('pos:settings', JSON.stringify(settings));
+      $('#operatorName').textContent = settings.operator;
+      operatorMenu.style.display = 'none';
+      alert('Cajero cambiado a: '+settings.operator);
+    });
+    // Cerrar menú si se toca fuera
+    document.addEventListener('click', (e)=>{
+      if(!operatorMenu.contains(e.target) && e.target!==operatorBtn && !operatorBtn.contains(e.target)){
+        operatorMenu.style.display = 'none';
+      }
+    });
+
+    // ---------- Inicio ----------
+    renderProducts();
+    applySettings();
+    $('#salesCount').textContent = salesCount;
+  </script>
+</body>
+</html>
