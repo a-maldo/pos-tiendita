@@ -2,13 +2,13 @@
   "name": "POS - Tiendita",
   "short_name": "POS",
   "description": "Punto de venta offline para snacks y bebidas.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/pos-tiendita/index.html",
+  "scope": "/pos-tiendita/",
   "display": "fullscreen",
   "background_color": "#0f1115",
   "theme_color": "#0f1115",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/pos-tiendita/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/pos-tiendita/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
