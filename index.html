@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
 
-<link rel="manifest" href="./manifest.json">
+<link rel="manifest" href="/pos-tiendita/manifest.json">
 <meta name="theme-color" content="#0f1115">
-<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="icon" href="/pos-tiendita/icons/icon-192.png" sizes="192x192">
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -720,5 +720,16 @@
     applySettings();
     $('#salesCount').textContent = salesCount;
   </script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/pos-tiendita/service-worker.js", { scope: "/pos-tiendita/" })
+      .catch(e => console.warn("SW fail", e));
+  });
+}
+</script>
+
+
 </body>
 </html>
